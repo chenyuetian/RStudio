@@ -1,0 +1,544 @@
+---
+title: An R Markdown document converted from "data_R.ipynb"
+author: "Yuwu Chen"
+output: 
+   html_document: default
+   pdf_document: default
+---
+
+<a href="https://colab.research.google.com/github/lsuhpchelp/lbrnloniworkshop2020/blob/master/day4/data_R.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+
+Data Analysis in R
+===
+
+# Outline
+
+
+*   **Data acquisition and inspection**
+
+*   **Preprocess the dataset**
+
+*   **Data analysis**
+
+
+
+## Case Study: Forbes Global 2000 list
+*   The `forbes` dataset consists of 2000 rows (observations) on 8 variables describing companies’ rank, name, country, category, sales, profits, assets and market value. 
+http://www.hpc.lsu.edu/training/weekly-materials/Downloads/Forbes2000.csv.zip
+    + **`rank`** the ranking of the company
+    + **`name`** the name of the company
+    + **`country`** the country the company is situated in
+    + **`category`** the products the company produces
+    + **`sales`** the amount of sales of the company in billion USD
+    + **`profits`** the profit of the company in billion USD
+    + **`assets`** the assets of the company in billion USD
+    + **`marketvalue`** the market value of the company in billion USD
+
+*  First 10 lines of the raw data
+
+>rank | name| country| category | sales | profits | assets | marketvalue
+>--- | --- | --- | --- | --- | --- | --- | ---
+>1 | Citigroup | United States | Banking | 94.71 | 17.85 | 1264.03 | 255.3
+>2 | General Electric | United States | Conglomerates | 134.19 | 15.59 | 626.93 | 328.54
+>3 | American Intl Group | United States | Insurance | 76.66 | 6.46 | 647.66 |194.87
+>4 | ExxonMobil | United States | Oil & gas operations | 222.88 | 20.96 | 166.99 | 277.02
+>5 | BP | United Kingdom | Oil & gas operations | 232.57 | 10.27 | 177.57 | 173.54
+>6 | Bank of America | United States | Banking | 49.01 | 10.81 | 736.45 | 117.55
+>7 | HSBC Group | United Kingdom | Banking | 44.33 | 6.66 | 757.6 | 177.96
+>8 | Toyota Motor | Japan | Consumer durables | 135.82 | 7.99 | 171.71 | 115.4
+>9 | Fannie Mae | United States | Diversified financials | 53.13 | 6.48 | 1019.17 | 76.84
+>10 | Wal-Mart Stores | United States | Retailing | 256.33 | 9.05 | 104.91 | 243.74
+
+# Step by step Data Analysis in R
+
+
+1. Get data
+2. Read data
+3. Inspect data
+4. Preprocess data (missing and dubious values, discard columns not needed etc.)
+5. Analyze data
+6. Generate report
+
+
+
+
+
+
+## 1. Getting Data
+* Downloading files from internet
+    + Manually download the file to the working directory 
+    + or with R function `download.file()`
+* Unzip with the `unzip()` function
+
+```{r}
+download.file("http://www.hpc.lsu.edu/training/weekly-materials/Downloads/Forbes2000.csv.zip","Forbes2000.csv.zip")
+unzip("Forbes2000.csv.zip","Forbes2000.csv")
+list.files()   # List files in current folder
+```
+
+## 2. Reading data
+* R understands many different data formats and has lots of ways of reading/writing them (csv, xml, excel, sql, json etc.)
+
+>Input | Output | Purpose
+>--- | --- | ---
+>read.table (read.csv) | write.table (write.csv) | for reading/writing tabular data
+>readLines | writeLines | for reading/writing lines of a text file
+>source | dump | for reading/writing in R code files
+>dget | dput | for reading/writing in R code files
+>load | save | for reading in/saving workspaces
+
+* ` read.csv()` is identical to `read.table()` except that the default separator is a comma.
+
+```{r}
+forbes <- read.csv("Forbes2000.csv",header=T,stringsAsFactors = FALSE,na.strings ="NA",sep=",")
+```
+
+* **Note: Changes since R 4.0.0** 
+    + R now uses a `stringsAsFactors = FALSE` default, and hence by default no longer converts strings to factors in calls to `data.frame()` and `read.table()`.
+    + It is a good practice to specify some options rather than using the default.
+
+* Tips: Find out R version used on any platforms (e.g. Google Colab)
+
+```{r}
+version
+```
+
+## 3. Inspecting data
+* `class()`: check object class
+* `dim()`: dimension of the data
+* `head()`: print on screen the first few lines of data, may use n as argument
+* `tail()`: print the last few lines of data
+
+```{r}
+class(forbes)
+dim(forbes)
+head(forbes,n=50)
+```
+
+* `str()` (structure) displays the structure of the Forbes dataframe.
+
+```{r}
+str(forbes)
+```
+
+* `summary()` has statistical summary of the Forbes dataframe. Note: there are missing values (NA's) in the profits.
+
+
+
+
+
+
+```{r}
+summary(forbes)
+```
+
+## 4. Preprocess data 
+
+### 4.1 Preprocessing - missing values
+* Missing values are denoted in R by NA or NaN for undefined mathematical operations.
+    + `is.na(x)` is used to test objects "x" if there are NAs
+    + Which one is NA? `which(is.na(x))`
+
+```{r}
+# is.na(forbes$profits)  #don't run this command line because you will get a very long list
+```
+
+```{r}
+which(is.na(forbes$profits))
+miss<-which(is.na(forbes$profits))  # save those rows with missing value
+```
+
+* more about missing value inspection
+    + How many NAs? `table(is.na(x))`
+    + list of observations with missing values on profits `x[is.na(x),]`
+
+
+```{r}
+table(is.na(forbes$profits))
+forbes[is.na(forbes$profits),]
+```
+
+* remember many R functions also have a logical 'na.rm'” option
+    + `na.rm=TRUE` means the NA values should be discarded
+
+```{r}
+mean(forbes$profits)  # will get NA
+mean(forbes$profits,na.rm=T)
+```
+
+* **Note: Not all missing values are marked with "NA" in the raw data!**
+
+* The simplest way to deal with the missing values is to remove them. 
+    + If a column (variable) has a high percentage of the missing value, remove the whole column or just don't use it for the analysis.
+    + If a row (observation) has a missing value, remove the row with `na.omit()`. e.g. 
+
+```{r}
+forbes2 <- na.omit(forbes)
+dim(forbes2)
+```
+
+* Alternatively, the missing values can be replaced by basic statistics e.g. 
+    + replace by mean 
+
+```{r}
+for(i in 1:nrow(forbes)){
+  if(is.na(forbes$profits[i])==TRUE){
+  forbes$profits[i] <- mean(forbes$profits, na.rm = TRUE)
+  }
+}
+dim(forbes)
+forbes[miss,]
+```
+
+* or use advanced statistical techniques. List of popular R Packages:
+> * MICE
+> * Amelia (named after Amelia Earhart, the first female pilot to fly solo across the Atlantic Ocean. History says, she got mysteriously disappeared (missing) while flying over the Pacific Ocean in 1937, hence this package was named to solve missing value problems.)
+> * missForest (non parametric imputation method)
+> * Hmisc
+> * mi
+
+### 4.2 Preprocessing - subsetting data
+* At most occasions we do not need all of the raw data
+* There are a number of methods of extracting a subset of R objects
+* Subsetting data can be done either by row or by column 
+
+#### 4.2.1 Subsetting by row: use conditions
+Find all companies with negative profit:
+
+```{r}
+forbes[forbes$profits < 0,c("name","sales","profits","assets")]
+```
+
+Find three companies with largest sale volumne:
+
+```{r}
+companies <- forbes$name  # or companies <- forbes[,"name"] 
+order_sales <- order(forbes$sales, decreasing=T)
+#company names
+companies[order_sales[1:3]]
+#company sales
+head(sort(forbes$sales,decreasing=T),n=3)
+```
+
+#### 4.2.2 Subsetting by row: use `subset()` function
+Find the business category to which most of the Bermuda island companies belong.
+
+```{r}
+Bermudacomp <- subset(forbes, country == "Bermuda")
+table(Bermudacomp[,"category"]) #frequency table of categories
+```
+
+#### 4.2.3 Subsetting by column
+Create another dataframe with only numeric variables
+
+```{r}
+#use data.frame function
+forbes3 <- data.frame(sales=forbes$sales,profits=forbes$profits,
+           assets=forbes$assets, mvalue=forbes$marketvalue)
+str(forbes3)
+
+#use subset() function
+forbes4 <- subset(forbes,select=c(sales,profits,assets,marketvalue))
+str(forbes4)
+
+#or simply use indexing
+forbes5 <- forbes[,c(5:8)]
+str(forbes5)
+```
+
+### 4.3 Preprocessing – Factors
+* factors are variables in R which take on a limited number of different values; such variables are often referred to as categorical variables
+
+
+Convert characters to (unordered) factors:
+
+```{r}
+forbes$country<-factor(forbes$country)
+str(forbes)
+```
+
+* Small classes could be merged into a larger class. Why?
+    + For better model performance. E.g. Classification and Regression Trees tend to split using the variables with many categories.
+    + Actual needs: Some categories have just a few subjects
+
+```{r}
+table(forbes$country)
+```
+
+* Merge small classes into a larger classes
+
+Merge all South American countries to "Venezuela"
+
+```{r}
+forbes$country[(forbes$country=="Bahamas")|(forbes$country=="Bermuda")|(forbes$country=="Brazil")|(forbes$country=="Cayman Islands")|(forbes$country=="Chile")|(forbes$country=="Panama/ United Kingdom")|(forbes$country=="Peru")]<-"Venezuela"
+```
+
+Merge small classes into a larger classes
+
+```{r}
+forbes$country[(forbes$country=="Austria")|(forbes$country=="Belgium")|(forbes$country=="Czech Republic")|(forbes$country=="Denmark")|(forbes$country=="Finland")|(forbes$country=="France")|(forbes$country=="Germany")|(forbes$country=="Greece")|(forbes$country=="Hungary")|(forbes$country=="Ireland")|(forbes$country=="Italy")|(forbes$country=="Luxembourg")|(forbes$country=="Netherlands")|(forbes$country=="Norway")|(forbes$country=="Poland")|(forbes$country=="Portugal")|(forbes$country=="Russia")|(forbes$country=="Spain")|(forbes$country=="Sweden")|(forbes$country=="Switzerland")|(forbes$country=="Turkey")|(forbes$country=="France/ United Kingdom")|(forbes$country=="United Kingdom/ Netherlands")|(forbes$country=="Netherlands/ United Kingdom")]<-"United Kingdom"
+forbes$country[(forbes$country=="China")|(forbes$country=="Hong Kong/China")|(forbes$country=="Indonesia")|(forbes$country=="Japan")|(forbes$country=="Kong/China")|(forbes$country=="Korea")|(forbes$country=="Malaysia")|(forbes$country=="Philippines")|(forbes$country=="Singapore")|(forbes$country=="South Korea")|(forbes$country=="Taiwan")]<-"Thailand"
+forbes$country[(forbes$country=="Africa")|(forbes$country=="Australia")|(forbes$country=="India")|(forbes$country=="Australia/ United Kingdom")|(forbes$country=="Islands")|(forbes$country=="Israel")|(forbes$country=="Jordan")|(forbes$country=="Liberia")|(forbes$country=="Mexico")|(forbes$country=="New Zealand")|(forbes$country=="Pakistan")|(forbes$country=="South Africa")|(forbes$country=="United Kingdom/ Australia")]<-"United Kingdom/ South Africa"
+```
+
+* Drop those levels with zero counts
+
+Use `droplevels()` function:
+
+```{r}
+forbes$country<-droplevels(forbes$country)
+```
+
+Now we can check the new frequency tables:
+
+```{r}
+table(forbes$country)
+```
+
+* Rename each class
+
+```{r}
+levels(forbes$country)<-c("Canada","East/Southeast Asia","Europe","Other","United States","Latin America")
+levels(forbes$country)
+```
+
+### 4.4 Export the cleaned dataset (Important for the next session)
+* Save forbes to Forbes2000_clean.csv
+
+```{r}
+write.csv(forbes,"Forbes2000_clean.csv",row.names=FALSE)
+list.files()
+```
+
+
+
+## 5. Data analysis
+
+### 5.1 Two common questions:
+* Which statistical model should I use for my data analysis?
+* How to choose the right R packages for my data analysis?
+
+#### Which statistical model should I use for my data analysis?
+* This is not a statistics workshop…
+* If you need to learn more about the data mining and data analysis, collaborate with statisticians on your campus
+> * e.g.: LSU https://www.lsu.edu/agriculture/exst/consulting.php
+* Coursera or any open courses provided by your institution
+
+#### How to choose the right R packages for my data analysis?
+* The most popular packages are most frequently mentioned
+* CRAN task views 
+https://cran.r-project.org/web/views/
+* RDocumentation https://www.rdocumentation.org
+> *  a website, an R package and an API
+> * supports taskview 
+> * searchs all 19,766 CRAN, Bioconductor and GitHub packages
+
+
+
+### 5.2 Import the cleaned dataset (Optional)
+* Subsetting by column
+Create a dataframe with the clean data
+
+```{r}
+forbes_clean <- read.csv("Forbes2000_clean.csv",header=T,stringsAsFactors = T,na.strings ="NA",sep=",")
+str(forbes_clean)
+```
+
+### 5.3 Extract Variables 
+* Create another data frame with only numeric variables + country
+
+```{r}
+forbes_clean <- forbes_clean[,c(3, 5:8)]
+str(forbes_clean)
+```
+
+### 5.4 Training Set and Test Set
+* Dataset could be randomly split into two parts: training set and test set. 
+
+```{r}
+set.seed(1) #set random seed reproducible
+indx <- sample(1:1995,size=1995,replace=F)
+forbes.train <- forbes_clean[indx[1:1600],]
+forbes.test <- forbes_clean[indx[1601:1995],]
+```
+
+### 5.5 Roadmap of generalizations of linear models
+* Roadmap of generalizations of linear models:
+> https://drive.google.com/open?id=1HrnpinlmyZl9_GL9xX24a5Nv6PUumovI
+
+* Explanation of Acronyms
+
+>Models | Acronym | R function
+>--- | --- | ---
+>Linear Models | LM | lm, aov
+>MultivariateLMs | MLM | manova
+>Generalized LMs | GLM | glm
+>Linear Mixed Models | LMM | lme, aov
+>Non-linear Models | NLM | nls
+>Non-linear Mixed Models | NLMM | nlme
+>Generalized LMMs | GLMM | glmmPQL
+>Generalized Additive Models | GAM | gam
+
+* Symbol Meanings in Model Formulae
+
+>Symbol | Example | Meaning
+>--- | --- | ---
+>+ | +X | Include variable X in the model
+>- | -X | Exclude variable X in the model
+>: | X:Z | Include the interaction between X and Z
+>\* | X\*Z | Include X and Z and the interactions
+>\| | NLM | Conditioning: include X given Z
+>^ | NLMM | Include A, B and C and all the interactions up to three way
+>/ | GLMM | As is: include a new variable consisting of these variables multiplied
+
+
+
+* Model Formulae
+> * General form: response ~ term1 + term2
+
+> Example | Meaning
+>--- | --- 
+>y ~ x | Simple regression
+>y ~ -1 +  x | LM through the origin
+>y ~ x + x^2 | Quadratic regression
+>y ~ x1 + x2 + x3 | Multiple regression
+>y ~ . | All variables included
+>y ~ . - x1 | All variables except X1
+>y ~ A + B + A : B | Add interaction
+>y ~ A \* B | Same above
+>y ~ (A+B)^2 | Same above
+
+
+
+
+
+### 5.6 A Multiple linear regression example
+* marketvalue ~ profits + sales + assets + country
+
+```{r}
+lm <- lm(marketvalue ~ ., data = forbes.train)
+summary(lm)
+```
+
+* R has created a n-1 variables each with two levels. These n-1 new variables contain the same information as the single variable. This recoding creates a table called contrast matrix.
+
+```{r}
+contrasts(forbes.train$country)
+```
+
+* The decision to code dummy variables is arbitrary, and has no effect on the regression computation, but does alter the interpretation of the coefficients.
+
+### 5.7 A Stepwise regression example
+* The function `regsubsets()` in the leaps library allow us to do the stepwise regression
+
+```{r}
+install.packages("leaps",repos = "http://cran.us.r-project.org")
+library(leaps)
+bwd <- regsubsets(marketvalue ~ ., data = forbes.train,nvmax =3,method ="backward")
+summary(bwd)
+```
+
+An asterisk indicates that a given variable is included in the corresponding model.
+
+### 5.8 A Regression tree example
+* The function `rpart() `in the rpart library allow us to grow a regression tree
+
+```{r}
+install.packages("rpart",repos = "http://cran.us.r-project.org")
+library(rpart)
+rpart <- rpart(marketvalue ~ ., data = forbes.train,control = rpart.control(xval = 10, minbucket = 50))
+par(mfrow=c(1,1),xpd=NA,cex=1.5)
+plot(rpart,uniform=T)
+text(rpart,use.n=T)
+```
+
+### 5.9 A Bagging tree example
+* The function `randomForest()` in the randomForest library allow us to grow a regression tree
+
+```{r}
+install.packages("randomForest",repos = "http://cran.us.r-project.org")
+library(randomForest)
+bag <- randomForest(marketvalue ~ ., data = forbes.train, importance =TRUE)
+importance(bag)
+varImpPlot(bag)
+```
+
+### 5.10 The predictive results in terms of the MAD and RMSE values 
+* MAD:
+
+$MAD = \frac{1}{N}\times\sum_{i=1}^N|y_i-\hat{y_i}|$
+
+
+* RMSE:
+
+$RMSE = \sqrt{\sum_{i=1}^N(y_i-\hat{y_i})^2/N}$
+
+>Model | Package | RMSE | MAD
+>--- | --- | --- | ---
+>MLR |  | 14.41041 | 6.436288
+>Backward | leaps | 14.41041 | 6.436288
+>Pruned tree | rpart | 17.85625 | 5.899107
+>Bagging tree | randomForest | 11.69301 | 4.944942
+
+* Bagging tree example for calculating RMSE and MAD
+
+```{r}
+forbes_clean2 <- forbes_clean[,c(2:5)]  # create a new dataframe with only numeric variables included
+set.seed(2) 
+indx <- sample(1:1995,size=1995,replace=F)
+forbes.train <- forbes_clean2[indx[1:1600],]
+forbes.test <- forbes_clean2[indx[1601:1995],]
+bag <- randomForest(marketvalue ~ ., data = forbes.train, importance =TRUE)
+# RMSE and MAD 
+bag.yhat <- predict(bag, newdata = forbes.test) 
+bag.y <- forbes.test["marketvalue"] 
+bag.rmse <- sqrt(mean(data.matrix((bag.y - bag.yhat)^2)))
+bag.rmse
+bag.abs = abs(bag.y - bag.yhat) 
+bag.mad = (sum(bag.abs))/395 
+bag.mad 
+```
+
+
+## 6. Generate report with R Markdown
+### 6.1 How R Markdown works
+* Weaves R code and human readable texts together into a plain text file that has the extension `.Rmd`
+* The `rmarkdown` package can convert `.Rmd` into documents of two types of output formats: documents, and presentations. All available formats are listed below:
+    + beamer_presentation
+    + context_document
+    + github_document
+    + html_document
+    + ioslides_presentation
+    + latex_document
+    + md_document
+    + odt_document
+    + pdf_document
+    + powerpoint_presentation
+    + rtf_document
+    + slidy_presentation
+    + word_document
+
+* Also helps make your research reproducible
+
+
+### 6.2 Cheatsheet and reference guide
+* [Cheatsheet](https://rstudio.com/wp-content/uploads/2016/03/rmarkdown-cheatsheet-2.0.pdf)
+* [Reference guide](https://rstudio.com/wp-content/uploads/2015/03/rmarkdown-reference.pdf)
+
+# Take-home message
+* Get the data 
+* Read and inspect the data
+* Preprocess the data
+    + missing values, discard rows, columns not needed etc.
+* Analyze the data
+    + choose the right model and R package
+    + common R functions and syntax for regressions
+* Generate the report
+    + R Markdown basics
+
+# Getting Help
+* Documentation: http://www.hpc.lsu.edu/docs
+* Contact us
+    + Email ticket system: sys-help@loni.org
+    + Telephone Help Desk: 225-578-0900
+
